@@ -4,4 +4,4 @@ Use Python to achieve the basic function of Ping.
 2.  Input URL as parameter.
 
 
-# Tracerout
+# Traceroute
