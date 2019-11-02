@@ -7,6 +7,7 @@ def handleRequest(tcpSocket):
     try:
         clientSocket, address = tcpSocket.accept()
     except error as e:
+        print(e)
         return
 
     request = clientSocket.recv(1024)
@@ -30,7 +31,7 @@ def handleRequest(tcpSocket):
     headerLine2 = 'Date: ' + datetime.datetime.utcnow().strftime(GMTFormat)
     headerLine3 = 'Server: Myself\r\n'
     headerLine4 = 'Last-Modified: NONE\r\n'
-    contentLength = str(sys.getsizeof(content))
+    contentLength = str(len(content))
     headerLine5 = 'Content-Length: ' + contentLength + '\r\n'
     headerLine6 = 'Content_Type: text/html\r\n'
     response = statusLine + headerLine1 + headerLine2 + headerLine3 + headerLine4 + headerLine5 + headerLine6 + '\r\n' + content
@@ -43,9 +44,7 @@ def startServer(serverAddress, serverPort):
     sock = socket(AF_INET, SOCK_STREAM)
     sock.bind((serverAddress, serverPort))
     sock.listen(0)
-
-    while True:
-        handleRequest(sock)
+    handleRequest(sock)
 
 
 startServer('10.129.32.71', 8000)
