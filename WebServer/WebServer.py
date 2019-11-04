@@ -1,5 +1,4 @@
 from socket import *
-import sys
 import datetime
 
 
@@ -22,6 +21,8 @@ def handleRequest(tcpSocket):
         file = open(path, 'r')
         content = file.read()
     except error as e:
+        file = open('files/404.html', 'r')
+        content = file.read()
         statusCode = '404'
         statusInfo = 'Not Found'
 
