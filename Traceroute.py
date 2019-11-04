@@ -122,6 +122,9 @@ def Tracert(destAddress, TTL, timeout):
             print(result[1])
             print('Done!')
             exit(0)
+        else:
+            print('Unknown Error!')
+            exit(-1)
     else:
         print(result)
 
