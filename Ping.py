@@ -52,7 +52,7 @@ def checksum(byte):
     return answer
 
 
-def receiveOnePing(icmpSocket, destinationAddress, ID):
+def receiveOnePing(icmpSocket, ID):
     # 1. Wait for the socket to receive a reply
     sendTime = time.time()
     receive = select.select([icmpSocket], [], [], 5)
@@ -89,10 +89,10 @@ def receiveOnePing(icmpSocket, destinationAddress, ID):
     return delay
 
 
-def sendOnePing(icmpSocket, destinationAddress, ID):
+def sendOnePing(icmpSocket, destinationAddress, ID, sequence):
     # 1. Build ICMP header
     nowTime = time.time()
-    icmpPacket = struct.pack("bbHHhd", ICMP_ECHO_REQUEST, 0, 0, ID, 1, nowTime)
+    icmpPacket = struct.pack("bbHHhd", ICMP_ECHO_REQUEST, 0, 0, ID, sequence, nowTime)
 
     # 2. Checksum ICMP packet using given function
     theChecksum = checksum(icmpPacket)
@@ -100,7 +100,7 @@ def sendOnePing(icmpSocket, destinationAddress, ID):
     check = theChecksum
 
     # 3. Insert checksum into packet
-    icmpPacket = struct.pack("bbHHhd", ICMP_ECHO_REQUEST, 0, theChecksum, ID, 1, nowTime)
+    icmpPacket = struct.pack("bbHHhd", ICMP_ECHO_REQUEST, 0, theChecksum, ID, sequence, nowTime)
 
     # 4. Send packet using socket
     try:
@@ -113,21 +113,21 @@ def sendOnePing(icmpSocket, destinationAddress, ID):
     sendSuccess = sendSuccess + 1
 
 
-def doOnePing(destinationAddress):
+def doOnePing(destinationAddress, sequence):
     # 1. Create ICMP socket
     s = socket(AF_INET, SOCK_RAW, getprotobyname("icmp"))
     ID = os.getpid() & 0xffff
 
     # 2. Send and receive one ping
-    sendOnePing(s, destinationAddress, ID)
-    delay = receiveOnePing(s, destinationAddress, ID)
+    sendOnePing(s, destinationAddress, ID, sequence)
+    delay = receiveOnePing(s, ID)
     s.close()
 
     # 5. Return total network delay
     return delay
 
 
-def ping(host, timeout):
+def ping(host, timeout, sequence):
     # 1. Look up hostname, resolving it to an IP address
     try:
         ipAddress = gethostbyname(host)
@@ -136,7 +136,7 @@ def ping(host, timeout):
         exit(-1)
 
     # 2. Call doOnePing function, approximately every second
-    delay = doOnePing(ipAddress)
+    delay = doOnePing(ipAddress, sequence)
 
     # 3. Print out the returned delay
     if delay > 0:
@@ -147,7 +147,7 @@ def ping(host, timeout):
             print('Timeout! (%0.4fms)' % delay)
         else:
             delay = delay * 1000
-            print('Get response in %0.4fms.' % delay)
+            print('Get response from %s in %0.4fms.' % (ipAddress, delay))
     else:
         if delay == -1:
             print('ID matching failure!')
@@ -188,7 +188,7 @@ else:
     timeoutSetting = parser.parse_args().t
 
 for i in range(pingTime):
-    result = ping(hostname, timeoutSetting)
+    result = ping(hostname, timeoutSetting, i + 1)
     total = total + result
 
     if result > max:
