@@ -61,8 +61,22 @@ def receiving(destAddress, ID, sendTime, timeout):
 
     if headerType == 0:
         return [0, address[0]]
-
-    return address[0]
+    elif headerType == 3:
+        if code == 1:
+            print('Host Unreachable!')
+            exit(-1)
+        else:
+            print('Other Error!')
+            exit(-1)
+    elif headerType == 11:
+        if code == 0:
+            return address[0]
+        else:
+            print('Other Error!')
+            exit(-1)
+    else:
+        print('Other Error!')
+        exit(-1)
 
 
 def sending(destAddress, ID):
