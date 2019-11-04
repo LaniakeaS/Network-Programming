@@ -12,6 +12,7 @@ prot = 'icmp'
 sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.getprotobyname(prot))
 ttl = 1
 maxHop = 30
+sequence = 0
 
 
 def checksum(byte):
@@ -47,7 +48,6 @@ def checksum(byte):
 
 def receiving(destAddress, ID, sendTime, timeout):
     receive = select.select([sock], [], [], timeout)
-    timeout = False
 
     if receive == ([], [], []):
         print('*    ', end='')
@@ -58,9 +58,6 @@ def receiving(destAddress, ID, sendTime, timeout):
     print('%dms   ' % ((receiveTime - sendTime) * 1000), end='')
     receivePack = receivePack[20:36]
     headerType, code, receiveChecksum, receiveID, receiveSequence, data = struct.unpack('bbHHhd', receivePack)
-
-    '''if receiveID != ID:
-        return -2'''
 
     if headerType == 0:
         return [0, address[0]]
@@ -73,9 +70,11 @@ def sending(destAddress, ID):
     currentTime = time.time()
 
     if prot == 'icmp':
-        pack = struct.pack('bbHHhd', ICMP_ECHO_REQUEST, 0, 0, ID, 1, currentTime)
+        global sequence
+        pack = struct.pack('bbHHhd', ICMP_ECHO_REQUEST, 0, 0, ID, sequence, currentTime)
         theChecksum = checksum(pack)
-        pack = struct.pack('bbHHhd', ICMP_ECHO_REQUEST, 0, theChecksum, ID, 1, currentTime)
+        pack = struct.pack('bbHHhd', ICMP_ECHO_REQUEST, 0, theChecksum, ID, sequence, currentTime)
+        sequence += 1
     elif prot == 'udp':
         pass
 
@@ -108,19 +107,21 @@ def Tracert(destAddress, TTL, timeout):
     sendTime = sending(ipAddress, ID)
     print('%d    ' % ttl, end='')
     result = None
+    isTimeout = False
 
     for j in range(3):
         result = receiving(ipAddress, ID, sendTime[j], timeout)
 
-    if result == -1:
+        if result == -1:
+            isTimeout = True
+
+    if isTimeout:
         print("Request Timeout")
-    elif result == -2:
-        print('Receive ID is not match!')
-        exit(-1)
-    elif result[0] == 0:
-        print(result[1])
-        print('Done!')
-        exit(0)
+    elif isinstance(result, list):
+        if result[0] == 0:
+            print(result[1])
+            print('Done!')
+            exit(0)
     else:
         print(result)
 
