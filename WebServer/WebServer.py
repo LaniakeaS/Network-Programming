@@ -1,5 +1,6 @@
 from socket import *
 import datetime
+import argparse
 
 
 def handleRequest(tcpSocket):
@@ -12,14 +13,24 @@ def handleRequest(tcpSocket):
     request = clientSocket.recv(1024)
     request = request.decode()
     requestList = request.split('\r\n')
-    method, URL, version = requestList[0].split(' ')
-    path = URL[1:]
-    statusCode = '200'
-    statusInfo = 'OK'
 
     try:
-        file = open(path, 'r')
-        content = file.read()
+        method, URL, version = requestList[0].split(' ')
+        path = URL[1:]
+        statusCode = '200'
+        statusInfo = 'OK'
+    except ValueError as e:
+        print(address)
+        path = '-1'
+        version = 'HTTP/1.1'
+        statusCode = '400'
+        statusInfo = 'Bad Request'
+        content = 'Invalid request!'
+
+    try:
+        if path != '-1':
+            file = open(path, 'r')
+            content = file.read()
     except error as e:
         file = open('files/404.html', 'r')
         content = file.read()
@@ -45,7 +56,11 @@ def startServer(serverAddress, serverPort):
     sock = socket(AF_INET, SOCK_STREAM)
     sock.bind((serverAddress, serverPort))
     sock.listen(0)
-    handleRequest(sock)
+
+    while True:
+        handleRequest(sock)
 
 
-startServer('10.129.32.71', 8000)
+parser = argparse.ArgumentParser(description='WebServer')
+parser.add_argument('-p', '--p', help='port', type=int, default=8000)
+startServer('10.129.32.71', parser.parse_args().p)
