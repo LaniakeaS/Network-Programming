@@ -61,7 +61,7 @@ def handleRequest(tcpSocket):
         clientSocket.sendall(receive)
         print('Done!')
         print('response:\n' + receive.decode())
-        print('Caching......\n')
+        print('Caching......')
 
         try:    # Cache the content requested by the client to the proxy server.
             cacheFile = open(('proxy/' + filename), 'w')
