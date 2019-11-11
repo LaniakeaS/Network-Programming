@@ -12,13 +12,13 @@ total = 0  # Total delay in -n times
 min = 1000  # Minimum delay
 max = 0  # Maximum delay
 hostname = None
-sendSuccess = 0
-receiveSuccess = 0
-lost = 0
-lostRate = 0
+sendSuccess = 0    # The number of times the program successfully sent packets.
+receiveSuccess = 0    # The number of times the program successfully receive packets.
+lost = 0    # How many packets are lost.
+lostRate = 0    # lost / sendSuccess
 result = 0
 timeoutSetting = 0.0
-check = 0
+check = 0    # checksum
 
 
 def checksum(byte):
@@ -54,10 +54,10 @@ def checksum(byte):
 
 def receiveOnePing(icmpSocket, ID):
     # 1. Wait for the socket to receive a reply
-    sendTime = time.time()
-    receive = select.select([icmpSocket], [], [], 5)
+    sendTime = time.time()    # Record the sending time after sending is completed.
+    receive = select.select([icmpSocket], [], [], 5)    # Check whether the receiving packet is readable and whether it has timed out badly.
 
-    if receive == ([], [], []):
+    if receive == ([], [], []):    # If the timeout is serious or unreadable, the exception code -2 is returned
         return -2
 
     # 2. Once received, record time of receipt, otherwise, handle a timeout
@@ -68,23 +68,19 @@ def receiveOnePing(icmpSocket, ID):
     delay = receiveTime - sendTime
 
     # 4. Unpack the packet header for useful information, including the ID
-    receiveICMPHeader = receivePackage[20:28]
-    icmpType, icmpCode, receiveChecksum, receiveID, receiveSequence = struct.unpack('bbHHh', receiveICMPHeader)
-    receiveICMPData = struct.unpack('d', receivePackage[28:len(receivePackage)])
+    receiveICMPHeader = receivePackage[20:len(receivePackage)]
+    icmpType, icmpCode, receiveChecksum, receiveID, receiveSequence, receiveICMPData = struct.unpack('bbHHhd', receiveICMPHeader)
 
     # 5. Check that the ID matches between the request and reply
     if icmpType == 3:
         errorHandle = -3 * 10 + icmpCode
         return errorHandle
 
-    if (receiveChecksum - check) != 8:
-        return -3
-
     if ID != receiveID:
         return -1
 
     # 6. Return total network delay
-    global receiveSuccess
+    global receiveSuccess    # After receiving, temporarily increase the number of successful receiving by one
     receiveSuccess = receiveSuccess + 1
     return delay
 
@@ -116,7 +112,7 @@ def sendOnePing(icmpSocket, destinationAddress, ID, sequence):
 def doOnePing(destinationAddress, sequence):
     # 1. Create ICMP socket
     s = socket(AF_INET, SOCK_RAW, getprotobyname("icmp"))
-    ID = os.getpid() & 0xffff
+    ID = os.getpid() & 0xffff    # Treat the communication process ID as the identifier in the ICMP package.
 
     # 2. Send and receive one ping
     sendOnePing(s, destinationAddress, ID, sequence)
@@ -143,12 +139,12 @@ def ping(host, timeout, sequence):
         if delay > timeout:
             delay = delay * 1000
             global receiveSuccess
-            receiveSuccess = receiveSuccess - 1
+            receiveSuccess = receiveSuccess - 1    # A delayed timeout is not a successful acceptance.
             print('Timeout! (%0.4fms)' % delay)
         else:
             delay = delay * 1000
             print('Get response from %s in %0.4fms.' % (ipAddress, delay))
-    else:
+    else:    # Exception handling
         if delay == -1:
             print('ID matching failure!')
             exit(-1)
@@ -173,28 +169,20 @@ def ping(host, timeout, sequence):
 
 parser = argparse.ArgumentParser(description='ping')
 parser.add_argument('hostname', help='Enter hostname as an argument.')
-parser.add_argument('-n', '--n', help='How many times you want to ping. (4 as default)', type=int)
-parser.add_argument('-t', '--t', help='Timeout setting. (as second)', type=float)
+parser.add_argument('-n', '--n', help='How many times you want to ping. (4 as default)', type=int, default=4)
+parser.add_argument('-t', '--t', help='Timeout setting. (as second)', type=float, default=1.0)
 hostname = parser.parse_args().hostname
-
-if parser.parse_args().n is None:
-    pingTime = 4
-else:
-    pingTime = parser.parse_args().n
-
-if parser.parse_args().t is None:
-    timeoutSetting = 1.0
-else:
-    timeoutSetting = parser.parse_args().t
+timeoutSetting = parser.parse_args().t
+pingTime = parser.parse_args().n
 
 for i in range(pingTime):
-    result = ping(hostname, timeoutSetting, i + 1)
-    total = total + result
+    result = ping(hostname, timeoutSetting, i + 1)    # Start ping for n times.
+    total = total + result    # To calculate the average delay, it need to calculate the total delay.
 
-    if result > max:
+    if result > max:    # Find maximum delay..
         max = result
 
-    if result < min:
+    if result < min:    # Find minimum delay.
         min = result
 
 lost = sendSuccess - receiveSuccess
@@ -203,6 +191,6 @@ lostRate = lost / sendSuccess * 100
 print("\nThe statistical information from %s:" % hostname)
 print("    Package: send = %d, receive = %d, lost = %d (lost rate = %d%%)" % (sendSuccess, receiveSuccess, lost, lostRate))
 
-if avg < (timeoutSetting * 1000):
+if avg < (timeoutSetting * 1000):    # Delay statistics are not displayed if the average delay is greater than the timeout.
     print("Estimated time of pings (as millisecond):")
     print("    MIN = %0.4fms, MAX = %0.4fms, AVG = %0.4fms" % (min, max, avg))

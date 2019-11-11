@@ -8,11 +8,10 @@ import select
 
 ICMP_ECHO_REQUEST = 8  # ICMP type code for echo request messages
 ICMP_ECHO_REPLY = 0  # ICMP type code for echo reply messages
-prot = 'icmp'
-sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.getprotobyname(prot))
-ttl = 1
-maxHop = 30
-sequence = 0
+sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.getprotobyname('icmp'))
+ttl = 1    # TTL has an initial value, which defaults to 1
+maxHop = 30    # Max hop times, which is 30 as default.
+sequence = 0    # Sequence in ICMP packet.
 
 
 def checksum(byte):
@@ -21,14 +20,12 @@ def checksum(byte):
     count = 0
 
     while count < countTo:
-        # thisVal = ord(byte[count+1]) * 256 + ord(byte[count])
         thisVal = byte[count + 1] * 256 + byte[count]
         csum = csum + thisVal
         csum = csum & 0xffffffff
         count = count + 2
 
     if countTo < len(byte):
-        # csum = csum + ord(byte[len(byte) - 1])
         csum = csum + byte[len(byte) - 1]
         csum = csum & 0xffffffff
 
@@ -46,10 +43,10 @@ def checksum(byte):
     return answer
 
 
-def receiving(destAddress, ID, sendTime, timeout):
-    receive = select.select([sock], [], [], timeout)
+def receiving(ID, sendTime, timeout):
+    receive = select.select([sock], [], [], timeout)    # Check whether the receiving packet is readable and whether it has timed out badly.
 
-    if receive == ([], [], []):
+    if receive == ([], [], []):    # If the timeout is serious or unreadable, the exception code -1 is returned and print '*'.
         print('*    ', end='')
         return -1
 
@@ -80,19 +77,17 @@ def receiving(destAddress, ID, sendTime, timeout):
 
 
 def sending(destAddress, ID):
-    sendTime = [0, 0, 0]
+    sendTime = [0, 0, 0]    # Each traceroute takes three pings, so it need to record three times of sending.
     currentTime = time.time()
 
-    if prot == 'icmp':
-        global sequence
-        pack = struct.pack('bbHHhd', ICMP_ECHO_REQUEST, 0, 0, ID, sequence, currentTime)
-        theChecksum = checksum(pack)
-        pack = struct.pack('bbHHhd', ICMP_ECHO_REQUEST, 0, theChecksum, ID, sequence, currentTime)
-        sequence += 1
-    elif prot == 'udp':
-        pass
+    # Package headers and data.
+    global sequence
+    pack = struct.pack('bbHHhd', ICMP_ECHO_REQUEST, 0, 0, ID, sequence, currentTime)
+    theChecksum = checksum(pack)
+    pack = struct.pack('bbHHhd', ICMP_ECHO_REQUEST, 0, theChecksum, ID, sequence, currentTime)
+    sequence += 1
 
-    for k in range(3):
+    for k in range(3):    # Send the packet 3 times and recording send time for each.
         try:
             sock.sendto(pack, (destAddress, 80))
         except socket.error as e:
@@ -106,14 +101,14 @@ def sending(destAddress, ID):
 
 def Tracert(destAddress, TTL, timeout):
     try:
-        ipAddress = socket.gethostbyname(destAddress)
+        ipAddress = socket.gethostbyname(destAddress)    # Gets the IP address based on the domain name and returns invalid domain name information if an error occurs.
     except socket.gaierror as e:
         print('Useless hostname! (%s)' % e)
         exit(-1)
 
     try:
-        ID = os.getpid() & 0xffff
-        sock.setsockopt(socket.SOL_IP, socket.IP_TTL, TTL)
+        ID = os.getpid() & 0xffff    # Set the communication process ID to the identifier in the icmp package.
+        sock.setsockopt(socket.SOL_IP, socket.IP_TTL, TTL)    # Set the TTL
     except socket.error as e:
         print(e)
         exit(-1)
@@ -124,9 +119,9 @@ def Tracert(destAddress, TTL, timeout):
     isTimeout = False
 
     for j in range(3):
-        result = receiving(ipAddress, ID, sendTime[j], timeout)
+        result = receiving(ID, sendTime[j], timeout)    # Receive three return packages, and record the return results for each.
 
-        if result == -1:
+        if result == -1:    # If one of the three pings times out, the timeout information is printed.
             isTimeout = True
 
     if isTimeout:
@@ -145,17 +140,11 @@ def Tracert(destAddress, TTL, timeout):
 
 parser = argparse.ArgumentParser(description='traceroute')
 parser.add_argument('destAddress', help='Enter address of destination as an argument.')
-parser.add_argument('-prot', '--prot', help='Which protocal do you want to use?')
 parser.add_argument('-max', '--max', help='Set max hop.', type=int, default=30)
-parser.add_argument('-to', '--to', help='Set timeout.', type=int, default=1)
+parser.add_argument('-to', '--to', help='Set timeout.', type=float, default=1.0)
 
-if parser.parse_args().prot is None:
-    prot = 'icmp'
-else:
-    prot = parser.parse_args()
-
-for i in range(parser.parse_args().max):
+for i in range(parser.parse_args().max):    # End the loop when I reaches the maximum number of hops.
     Tracert(parser.parse_args().destAddress, ttl, parser.parse_args().to)
-    ttl = ttl + 1
+    ttl = ttl + 1    # At the end of each single traceroute, the TTL is increased by one
 
 print('Done!')
