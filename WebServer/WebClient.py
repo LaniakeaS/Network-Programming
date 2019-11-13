@@ -2,7 +2,7 @@ from socket import *
 
 
 def receiveHTTP(tcpSock):
-    receive = tcpSock.recv(1024)
+    receive = tcpSock.recv(65535)
     print(receive.decode())
     tcpSock.close()
 
@@ -15,6 +15,6 @@ def sendHTTPRequest(tcpSock):
 
 
 sock = socket(AF_INET, SOCK_STREAM)
-sock.connect(('127.0.0.1', 8000))
+sock.connect(('10.129.32.71', 7000))
 sendHTTPRequest(sock)
 receiveHTTP(sock)
