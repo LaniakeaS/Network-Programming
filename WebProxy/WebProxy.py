@@ -13,12 +13,10 @@ def handleRequest(tcpSocket):
             return
 
         request = request.decode()  # The request is decoded and converted into a string that is convenient to operate.
-        requestList = request.split(
-            '\r\n')  # Divide the request into different unit lines, depending on the HTTP format.
+        requestList = request.split('\r\n')  # Divide the request into different unit lines, depending on the HTTP format.
 
         try:
-            method, URL, version = requestList[0].split(
-                ' ')  # Extract the request method, URL, and version from the first line.
+            method, URL, version = requestList[0].split(' ')  # Extract the request method, URL, and version from the first line.
 
             if method != 'GET':  # Only can deal with method 'GET'
                 return
